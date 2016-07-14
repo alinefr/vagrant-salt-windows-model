@@ -1,20 +1,20 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 $script = <<SCRIPT
-$url = "https://github.com/git-for-windows/git/releases/download/v2.9.0.windows.1/MinGit-2.9.0-preview-64-bit.zip"
-$zipfile = "MinGit-2.9.0-preview-64-bit.zip"
+$git_version = '2.9.0'
+$zipfile = "MinGit-$git_version-preview-64-bit.zip"
+$url = "https://github.com/git-for-windows/git/releases/download/v$git_version.windows.1/$zipfile"
 $dest_dir = "c:\\Users\\vagrant\\Downloads"
 $git_exec = "c:\\Program \Files\\Git\\bin\\git.exe"
 
 # Download, Unzip and install git
-if (-Not (Test-Path -Path $git_exec)) {
+if (-Not (Get-Command "git" -ErrorAction SilentlyContinue)) {
   if (-Not (Test-Path -Path $dest_dir\\$zipfile)) {
     try {
       Invoke-WebRequest -OutFile $dest_dir\\$zipfile $url -ErrorAction Stop
     } Catch {
       $ErrorMessage = $_.Exception.Message
-      $FailedItem = $_.Exception.ItemName
-      "Failed to download $zipfile in $FailedItem."
+      "Failed to download $zipfile."
       "ERROR: $ErrorMessage"
     }
   }
@@ -23,16 +23,21 @@ if (-Not (Test-Path -Path $git_exec)) {
     [System.IO.Compression.ZipFile]::ExtractToDirectory("$dest_dir\\$zipfile", 'c:\\Program \Files\\Git')
   } Catch {
     $ErrorMessage = $_.Exception.Message
-    $FailedItem = $_.Exception.ItemName
-    "Failed to unzip $zipfile in $FailedItem."
+    "Failed to unzip $zipfile."
     "ERROR: $ErrorMessage"
   }
-  [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\\Program \Files\\Git\\cmd", [EnvironmentVariableTarget]::Machine)
+  $PATH = $env:Path + ";c:\\Program\ Files\\Git\\cmd"
+  [Environment]::SetEnvironmentVariable("Path", "$PATH", [EnvironmentVariableTarget]::Machine)
 } 
 
-# Add salt to system Path
+# Add salt to system Path. Checks whether $PATH is already set (git).
 if (-Not (Get-Command "salt-call" -ErrorAction SilentlyContinue)) {
-  [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\\salt", [EnvironmentVariableTarget]::Machine)
+  if (Get-Variable PATH -Scope Global -ErrorAction SilentlyContinue) {
+    $PATH = $PATH + ";c:\\salt"
+  } else {
+    $PATH = $env:Path + ";c:\\salt"
+  }
+  [Environment]::SetEnvironmentVariable("Path", "$PATH",  [EnvironmentVariableTarget]::Machine)
 }
 SCRIPT
 
@@ -40,7 +45,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = "opentable/win-2012r2-standard-amd64-nocm"
   config.vm.synced_folder "provision/salt", "/salt/file_roots/salt"
   config.vm.provider "virtualbox" do |v|
-    v.gui = false
+    v.gui = true
   end
   config.vm.provision "shell", inline: $script 
   config.vm.provision :salt do |salt|
