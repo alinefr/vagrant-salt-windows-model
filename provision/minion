@@ -1,0 +1,7 @@
+file_client: local
+win_repo_cachefile: c:\salt\file_roots\winrepo\winrepo.p
+win_repo_dir: c:\salt\file_roots\winrepo
+
+file_roots: 
+  base:
+    - c:\salt\file_roots\salt
